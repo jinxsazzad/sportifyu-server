@@ -48,7 +48,7 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
-    const db = client.db('herosHideout');
+    const db = client.db('sportSpark');
     const usersCollection = db.collection('users');
 
     //all api code would be here
@@ -71,20 +71,44 @@ async function run() {
       }
       next();
     }
+    // handle Users
 
-   //save user in db
-   app.post('/users', async (req,res)=>{
+   //1.save user mail and role in db
+   app.put('/users:email', async (req,res)=>{
+    const email = req.params.email
     const user = req.body;
     console.log(user)
-    const query = {email:user.email}
+    const query = {email:email}
+    const option = {upsert:true}
+    const updateDoc = {
+      $set:user,
+    }
     const existingUser = await usersCollection.findOne(query);
 
     if(existingUser){
       return res.send({message:'user already exists'})
     }
 
-    const result = await usersCollection.insertOne(user);
+    const result = await usersCollection.updateOne(query,updateDoc,option);
     res.send(result)
+   })
+  // app.put('/users/:email', async (req, res) => {
+  //   const email = req.params.email
+  //   const user = req.body
+  //   const query = { email: email }
+  //   const options = { upsert: true }
+  //   const updateDoc = {
+  //     $set: user,
+  //   }
+  //   const result = await usersCollection.updateOne(query, updateDoc, options)
+  //   res.send(result)
+  // })
+
+   //2. get all users
+   app.get('/users',async (req,res)=>{
+    const result = await usersCollection.find().toArray();
+    res.send(result)
+
    })
 
 

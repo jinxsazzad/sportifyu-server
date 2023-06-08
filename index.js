@@ -1,7 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 const jwt = require('jsonwebtoken');
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 require("dotenv").config();
 
 const app = express();
@@ -50,6 +50,7 @@ async function run() {
     await client.connect();
     const db = client.db('sportSpark');
     const usersCollection = db.collection('users');
+    const classesCollection = db.collection('classes')
 
     //all api code would be here
     app.post ('/jwt',(req,res)=>{
@@ -72,9 +73,8 @@ async function run() {
       next();
     }
     // handle Users
-
    //1.save user mail and role in db
-   app.put('/users:email', async (req,res)=>{
+   app.put('/users/:email', async (req,res)=>{
     const email = req.params.email
     const user = req.body;
     console.log(user)
@@ -92,25 +92,63 @@ async function run() {
     const result = await usersCollection.updateOne(query,updateDoc,option);
     res.send(result)
    })
-  // app.put('/users/:email', async (req, res) => {
-  //   const email = req.params.email
-  //   const user = req.body
-  //   const query = { email: email }
-  //   const options = { upsert: true }
-  //   const updateDoc = {
-  //     $set: user,
-  //   }
-  //   const result = await usersCollection.updateOne(query, updateDoc, options)
-  //   res.send(result)
-  // })
 
-   //2. get all users
-   app.get('/users',async (req,res)=>{
-    const result = await usersCollection.find().toArray();
+   //2. get user role
+   app.get('/users/:email',async (req,res)=>{
+    const email = req.params.email
+    const query = {email:email}
+    const result = await usersCollection.find(query).toArray();
     res.send(result)
 
    })
 
+   //class data
+   //get all class
+   app.get('/classes',async(req,res)=>{
+    const result = await classesCollection.find().toArray()
+    res.send(result)
+   })
+   //get class by email
+   app.get('/classes/:email',async(req,res)=>{
+    const email = req.params.email;
+    const myClass = await classesCollection.find({instructorEmail: email}).toArray()
+    res.send(myClass);
+   })
+
+   app.post('/classes',async(req,res)=>{
+    const body = req.body;
+    const result = await classesCollection.insertOne(body);
+    res.send(result);
+   })
+
+   app.get('/classes/:id', async(req,res)=>{
+    const id = req.params.id;
+    const filter = {_id:new ObjectId(id)}
+    const result = await classesCollection.findOne(filter);
+    res.send(result)
+   })
+
+   app.patch('/classes/:id', async(req,res)=>{
+    const id = req.params.id;
+    const body = req.body;
+    const {status}=body
+    const filter = {_id: new ObjectId(id)}
+    const updateDoc = {
+      $set:{
+
+      }
+    }
+    const result = await classesCollection.updateOne(filter,updateDoc);
+    res.send(result);
+   })
+
+   app.delete('/classes/:id',async(req,res)=>{
+    const id = req.params.id;
+    const query = {_id: new ObjectId(id)}
+    const result = await classesCollection.deleteOne(query);
+    res.send(result);
+
+   })
 
 
 

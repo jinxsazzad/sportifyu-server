@@ -102,6 +102,8 @@ async function run() {
       const result = await usersCollection.find(query).toArray();
       res.send(result);
     });
+
+
     app.get("/users/role/:role", async (req, res) => {
       const role = req.params.role;
       const query = { role: role };
@@ -115,6 +117,13 @@ async function run() {
       const result = await classesCollection.find().toArray();
       res.send(result);
     });
+    app.get("/student-classes/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = {studentEmail:email,selected:true}
+      const result = await studentsClassesCollection.find(query).toArray();
+      res.send(result);
+    });
+    
     
 
 
@@ -150,12 +159,13 @@ async function run() {
       res.send(result);
     });
     
-    app.post("students-classes", async (req, res) => {
+    app.post("/students-classes", async (req, res) => {
       const body = req.body;
       const result = await studentsClassesCollection.insertOne(body);
       res.send(result);
     });
 
+    
     
     app.patch("/classes/update-instructor/:id", async (req, res) => {
       const id = req.params.id;

@@ -53,6 +53,7 @@ async function run() {
     const db = client.db("sportSpark");
     const usersCollection = db.collection("users");
     const classesCollection = db.collection("classes");
+    const studentsClassesCollection = db.collection("students-classes")
 
     //all api code would be here
     app.post("/jwt", (req, res) => {
@@ -148,16 +149,36 @@ async function run() {
       const result = await classesCollection.insertOne(body);
       res.send(result);
     });
+    
+    app.post("students-classes", async (req, res) => {
+      const body = req.body;
+      const result = await studentsClassesCollection.insertOne(body);
+      res.send(result);
+    });
 
     
-    app.patch("/classes/id/:id", async (req, res) => {
+    app.patch("/classes/update-instructor/:id", async (req, res) => {
       const id = req.params.id;
       const body = req.body;
-      const { status } = body;
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
           className:body.className,
+          classPicture:body.classPicture,
+          classPrice:body.classPrice,
+        },
+      };
+      const result = await classesCollection.updateOne(filter, updateDoc);
+      res.send(result);
+    });
+    app.patch("/classes/update-student/:id", async (req, res) => {
+      const id = req.params.id;
+      const body = req.body;
+      const filter = { _id: new ObjectId(id) };
+      const updateDoc = {
+        $set: {
+          selectedStudent:body.selectedStudent,
+          availableSeats:body.availableSeats,
         },
       };
       const result = await classesCollection.updateOne(filter, updateDoc);

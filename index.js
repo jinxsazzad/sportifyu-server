@@ -117,6 +117,7 @@ async function run() {
       const result = await classesCollection.find().toArray();
       res.send(result);
     });
+
     app.get("/student-classes/:email", async (req, res) => {
       const email = req.params.email;
       const query = {studentEmail:email,selected:true}
@@ -124,6 +125,15 @@ async function run() {
       res.send(result);
     });
     
+    app.get("/popular-classes", async (req, res) => {
+      const result = await classesCollection
+        .find({ "enrolledStudent": { "$exists": true } })
+        .sort({ "enrolledStudent": -1 })
+        .limit(6)
+        .toArray();
+    
+      res.send(result);
+    });
     
 
 

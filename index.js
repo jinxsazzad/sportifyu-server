@@ -50,6 +50,8 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
+
+    //collections
     const db = client.db("sportSpark");
     const usersCollection = db.collection("users");
     const classesCollection = db.collection("classes");
@@ -74,6 +76,8 @@ async function run() {
       }
       next();
     };
+
+
     // handle Users
     //1.save user mail and role in db
     app.put("/users/:email", async (req, res) => {
@@ -82,14 +86,17 @@ async function run() {
       console.log(user);
       const query = { email: email };
       const option = { upsert: true };
-      const updateDoc = {
-        $set: user,
-      };
+
       const existingUser = await usersCollection.findOne(query);
 
       if (existingUser) {
         return res.send({ message: "user already exists" });
       }
+
+      const updateDoc = {
+        $set: user,
+      };
+      
 
       const result = await usersCollection.updateOne(query, updateDoc, option);
       res.send(result);

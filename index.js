@@ -55,7 +55,7 @@ async function run() {
     const db = client.db("sportSpark");
     const usersCollection = db.collection("users");
     const classesCollection = db.collection("classes");
-    const studentsClassesCollection = db.collection("students-classes")
+    const studentsClassesCollection = db.collection("students-classes");
 
     //all api code would be here
     app.post("/jwt", (req, res) => {
@@ -77,46 +77,51 @@ async function run() {
       next();
     };
 
-
     // handle Users
     //1.save user mail and role in db
     app.put("/users/:email", async (req, res) => {
       const email = req.params.email;
       const user = req.body;
-      console.log(user);
-      const query = { email: email };
-      const option = { upsert: true };
-
-      const existingUser = await usersCollection.findOne(query);
-
-      if (existingUser) {
-        return res.send({ message: "user already exists" });
+    
+      try {
+        const existingUser = await usersCollection.findOne({ email: email });
+    
+        if (!existingUser) {
+          const newUser = { ...user, role: "student" }; // Modify the role for new users
+          const result = await usersCollection.insertOne(newUser);
+          res.send(result);
+        } else {
+          const updateDoc = {
+            $set: user,
+          };
+    
+          const result = await usersCollection.updateOne(
+            { email: email },
+            updateDoc
+          );
+          res.send(result);
+        }
+      } catch (error) {
+        res.status(500).send({
+          error: "An error occurred while creating or updating the user.",
+        });
       }
-
-      const updateDoc = {
-        $set: user,
-      };
-      
-
-      const result = await usersCollection.updateOne(query, updateDoc, option);
-      res.send(result);
     });
+    
 
     //2. get user role
-    app.get("/users/:email", async (req, res) => {
-      const email = req.params.email;
-      const query = { email: email };
-      const result = await usersCollection.find(query).toArray();
-      res.send(result);
-    });
+    app.get('/users/:email', async (req, res) => {
+      const email = req.params.email
+      const query = { email: email }
+      const result = await usersCollection.findOne(query)
+      res.send(result)
+    })
+    app.get('/users', async (req, res) => {
+      const result = await usersCollection.find().toArray()
+      res.send(result)
+    })
 
-
-    app.get("/users/role/:role", async (req, res) => {
-      const role = req.params.role;
-      const query = { role: role };
-      const result = await usersCollection.find(query).toArray();
-      res.send(result);
-    });
+    
 
     //class data
     //get all class
@@ -125,30 +130,87 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/classes/approved", async (req, res) => {
+      try {
+        const approvedClasses = await classesCollection.find({ status: "approved" }).toArray();
+        res.send(approvedClasses);
+      } catch (error) {
+        res.status(500).send({ error: "An error occurred while retrieving the approved classes." });
+      }
+    });
+
+    app.put("/classes/:classId/status", async (req, res) => {
+      const classId = req.params.classId;
+      const newStatus = req.body.status;
+    
+      try {
+        const updatedClass = await classesCollection.findOneAndUpdate(
+          { _id: new ObjectId(classId) },
+          { $set: { status: newStatus } },
+          { returnOriginal: false }
+        );
+    
+        if (!updatedClass) {
+          return res.status(404).send({ error: "Class not found." });
+        }
+    
+        res.send(updatedClass);
+      } catch (error) {
+        console.error("Error updating class status:", error);
+        res.status(500).send({ error: "An error occurred while updating the class status." });
+      }
+    });
+
+    app.put("/classes/:classId/feedback", async (req, res) => {
+      const classId = req.params.classId;
+      const feedbackId = req.body.feedbackId;
+      const feedbackText = req.body.feedbackText;
+    
+      try {
+        const updatedClass = await classesCollection.findOneAndUpdate(
+          { _id: new ObjectId(classId), "adminFeedback._id": ObjectId(feedbackId) },
+          { $set: { "adminFeedback.$.text": feedbackText } },
+          { returnOriginal: false }
+        );
+    
+        if (!updatedClass.value) {
+          return res.status(404).send({ error: "Class or feedback not found." });
+        }
+    
+        res.send(updatedClass.value);
+      } catch (error) {
+        res.status(500).send({ error: "An error occurred while updating the feedback." });
+      }
+    });
+    
+    
+    
+    
+
     app.get("/student-classes/:email", async (req, res) => {
       const email = req.params.email;
-      const query = {studentEmail:email,selected:true}
+      const query = { studentEmail: email, selected: true };
       const result = await studentsClassesCollection.find(query).toArray();
       res.send(result);
     });
-    
+
     app.get("/popular-classes", async (req, res) => {
       const result = await classesCollection
-        .find({ "enrolledStudent": { "$exists": true } })
-        .sort({ "enrolledStudent": -1 })
+        .find({ enrolledStudent: { $exists: true } })
+        .sort({ enrolledStudent: -1 })
         .limit(6)
         .toArray();
-    
+
       res.send(result);
     });
-    
-
 
     app.get("/classes/id/:id", async (req, res) => {
       try {
         const classId = req.params.id;
-        const result = await classesCollection.findOne({ _id: new ObjectId(classId) });
-    
+        const result = await classesCollection.findOne({
+          _id: new ObjectId(classId),
+        });
+
         if (result) {
           res.send(result);
         } else {
@@ -168,31 +230,28 @@ async function run() {
         .toArray();
       res.send(myClass);
     });
-    
 
     app.post("/classes", async (req, res) => {
       const body = req.body;
       const result = await classesCollection.insertOne(body);
       res.send(result);
     });
-    
+
     app.post("/students-classes", async (req, res) => {
       const body = req.body;
       const result = await studentsClassesCollection.insertOne(body);
       res.send(result);
     });
 
-    
-    
     app.patch("/classes/update-instructor/:id", async (req, res) => {
       const id = req.params.id;
       const body = req.body;
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
-          className:body.className,
-          classPicture:body.classPicture,
-          classPrice:body.classPrice,
+          className: body.className,
+          classPicture: body.classPicture,
+          classPrice: body.classPrice,
         },
       };
       const result = await classesCollection.updateOne(filter, updateDoc);
@@ -204,8 +263,8 @@ async function run() {
       const filter = { _id: new ObjectId(id) };
       const updateDoc = {
         $set: {
-          selectedStudent:body.selectedStudent,
-          availableSeats:body.availableSeats,
+          selectedStudent: body.selectedStudent,
+          availableSeats: body.availableSeats,
         },
       };
       const result = await classesCollection.updateOne(filter, updateDoc);
@@ -218,8 +277,6 @@ async function run() {
       const result = await classesCollection.deleteOne(query);
       res.send(result);
     });
-
-    
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });

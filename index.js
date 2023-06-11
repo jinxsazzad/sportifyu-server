@@ -120,6 +120,11 @@ async function run() {
       const result = await usersCollection.find().toArray()
       res.send(result)
     })
+    app.get('/instructors', async (req, res) => {
+      const result = await usersCollection.find({role:"instructor"}).toArray()
+      res.send(result)
+    })
+
 
     
 
@@ -138,6 +143,11 @@ async function run() {
         res.status(500).send({ error: "An error occurred while retrieving the approved classes." });
       }
     });
+
+    app.get("/users/instructor/", async(req,res)=>{
+      const result = await usersCollection.find({ role: "instructor" }).toArray();
+        res.send(result);
+    })
 
     app.put("/classes/:classId/status", async (req, res) => {
       const classId = req.params.classId;
@@ -163,18 +173,17 @@ async function run() {
 
     app.put("/classes/:classId/feedback", async (req, res) => {
       const classId = req.params.classId;
-      const feedbackId = req.body.feedbackId;
-      const feedbackText = req.body.feedbackText;
+      const feedbackText = req.body.adminFeedback;
     
       try {
         const updatedClass = await classesCollection.findOneAndUpdate(
-          { _id: new ObjectId(classId), "adminFeedback._id": ObjectId(feedbackId) },
-          { $set: { "adminFeedback.$.text": feedbackText } },
+          { _id: new ObjectId(classId) },
+          { $set: { adminFeedback: feedbackText } },
           { returnOriginal: false }
         );
     
         if (!updatedClass.value) {
-          return res.status(404).send({ error: "Class or feedback not found." });
+          return res.status(404).send({ error: "Feedback not found." });
         }
     
         res.send(updatedClass.value);

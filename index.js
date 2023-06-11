@@ -58,6 +58,8 @@ async function run() {
     const studentsClassesCollection = db.collection("students-classes");
 
     //all api code would be here
+
+    //post request tor jwt token
     app.post("/jwt", (req, res) => {
       const user = req.body;
       const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
@@ -77,156 +79,80 @@ async function run() {
       next();
     };
 
-    // handle Users
-    //1.save user mail and role in db
+    // handle Users and their role
+
+    //save user mail and role in db
     app.put("/users/:email", async (req, res) => {
       const email = req.params.email;
       const user = req.body;
-    
-      try {
-        const existingUser = await usersCollection.findOne({ email: email });
-    
-        if (!existingUser) {
-          const newUser = { ...user, role: "student" }; // Modify the role for new users
-          const result = await usersCollection.insertOne(newUser);
-          res.send(result);
-        } else {
-          const updateDoc = {
-            $set: user,
-          };
-    
-          const result = await usersCollection.updateOne(
-            { email: email },
-            updateDoc
-          );
-          res.send(result);
-        }
-      } catch (error) {
-        res.status(500).send({
-          error: "An error occurred while creating or updating the user.",
-        });
+
+      const existingUser = await usersCollection.findOne({ email: email });
+
+      if (!existingUser) {
+        const newUser = { ...user, role: "student" }; // Modify the role for new users
+        const result = await usersCollection.insertOne(newUser);
+        res.send(result);
+      } else {
+        const updateDoc = {
+          $set: user,
+        };
+
+        const result = await usersCollection.updateOne(
+          { email: email },
+          updateDoc
+        );
+        res.send(result);
       }
     });
-    
 
-    //2. get user role
-    app.get('/users/:email', async (req, res) => {
-      const email = req.params.email
-      const query = { email: email }
-      const result = await usersCollection.findOne(query)
-      res.send(result)
-    })
-    app.get('/users', async (req, res) => {
-      const result = await usersCollection.find().toArray()
-      res.send(result)
-    })
-    app.get('/instructors', async (req, res) => {
-      const result = await usersCollection.find({role:"instructor"}).toArray()
-      res.send(result)
-    })
+    //get all user
+    app.get("/users", async (req, res) => {
+      const allUsers = await usersCollection.find().toArray();
+      res.send(allUsers);
+    });
 
+    //get user user by email
+    app.get("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const result = await usersCollection.findOne(query);
+      res.send(result);
+    });
 
-    
+    //get instructors
+    app.get("/instructors", async (req, res) => {
+      const allInstructors = await usersCollection
+        .find({ role: "instructor" })
+        .toArray();
+      res.send(allInstructors);
+    });
 
-    //class data
+    //handle Classes related api
+
+    //post a class
+    app.post("/classes", async (req, res) => {
+      const body = req.body;
+      const result = await classesCollection.insertOne(body);
+      res.send(result);
+    });
+
     //get all class
     app.get("/classes", async (req, res) => {
-      const result = await classesCollection.find().toArray();
-      res.send(result);
+      const allClasses = await classesCollection.find().toArray();
+      res.send(allClasses);
     });
 
-    app.get("/classes/approved", async (req, res) => {
-      try {
-        const approvedClasses = await classesCollection.find({ status: "approved" }).toArray();
-        res.send(approvedClasses);
-      } catch (error) {
-        res.status(500).send({ error: "An error occurred while retrieving the approved classes." });
-      }
-    });
-
-    app.get("/users/instructor/", async(req,res)=>{
-      const result = await usersCollection.find({ role: "instructor" }).toArray();
-        res.send(result);
-    })
-
-    app.put("/classes/:classId/status", async (req, res) => {
-      const classId = req.params.classId;
-      const newStatus = req.body.status;
-    
-      try {
-        const updatedClass = await classesCollection.findOneAndUpdate(
-          { _id: new ObjectId(classId) },
-          { $set: { status: newStatus } },
-          { returnOriginal: false }
-        );
-    
-        if (!updatedClass) {
-          return res.status(404).send({ error: "Class not found." });
-        }
-    
-        res.send(updatedClass);
-      } catch (error) {
-        console.error("Error updating class status:", error);
-        res.status(500).send({ error: "An error occurred while updating the class status." });
-      }
-    });
-
-    app.put("/classes/:classId/feedback", async (req, res) => {
-      const classId = req.params.classId;
-      const feedbackText = req.body.adminFeedback;
-    
-      try {
-        const updatedClass = await classesCollection.findOneAndUpdate(
-          { _id: new ObjectId(classId) },
-          { $set: { adminFeedback: feedbackText } },
-          { returnOriginal: false }
-        );
-    
-        if (!updatedClass.value) {
-          return res.status(404).send({ error: "Feedback not found." });
-        }
-    
-        res.send(updatedClass.value);
-      } catch (error) {
-        res.status(500).send({ error: "An error occurred while updating the feedback." });
-      }
-    });
-    
-    
-    
-    
-
-    app.get("/student-classes/:email", async (req, res) => {
-      const email = req.params.email;
-      const query = { studentEmail: email, selected: true };
-      const result = await studentsClassesCollection.find(query).toArray();
-      res.send(result);
-    });
-
-    app.get("/student-classes/id/:id", async (req, res) => {
-      const id = req.params.id;
-      const result = await studentsClassesCollection.find({_id: new ObjectId(id)}).toArray();
-      res.send(result);
-    });
-
+    //get popular classes for homepage
     app.get("/popular-classes", async (req, res) => {
       const result = await classesCollection
         .find({ enrolledStudent: { $exists: true } })
         .sort({ enrolledStudent: -1 })
         .limit(6)
         .toArray();
-
       res.send(result);
     });
 
-    app.delete("/student-classes/id/:id", async (req, res) => {
-      const id = req.params.id;
-      const query = { _id: new ObjectId(id) };
-      const result = await studentsClassesCollection.deleteOne(query);
-      res.send(result);
-    });
-
-    //get class by email
+    //get classes by email
     app.get("/classes/email/:email", async (req, res) => {
       const email = req.params.email;
       const myClass = await classesCollection
@@ -235,18 +161,14 @@ async function run() {
       res.send(myClass);
     });
 
-    app.post("/classes", async (req, res) => {
-      const body = req.body;
-      const result = await classesCollection.insertOne(body);
+    //get a class by id
+    app.get("/classes/id/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await classesCollection.findOne({ _id: new ObjectId(id) });
       res.send(result);
     });
 
-    app.post("/students-classes", async (req, res) => {
-      const body = req.body;
-      const result = await studentsClassesCollection.insertOne(body);
-      res.send(result);
-    });
-
+    //update a class data
     app.patch("/classes/update-instructor/:id", async (req, res) => {
       const id = req.params.id;
       const body = req.body;
@@ -261,24 +183,84 @@ async function run() {
       const result = await classesCollection.updateOne(filter, updateDoc);
       res.send(result);
     });
-    app.patch("/classes/update-student/:id", async (req, res) => {
-      const id = req.params.id;
-      const body = req.body;
-      const filter = { _id: new ObjectId(id) };
-      const updateDoc = {
-        $set: {
-          selectedStudent: body.selectedStudent,
-          availableSeats: body.availableSeats,
-        },
-      };
-      const result = await classesCollection.updateOne(filter, updateDoc);
-      res.send(result);
-    });
 
+    //delete a class by id
     app.delete("/classes/id/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
       const result = await classesCollection.deleteOne(query);
+      res.send(result);
+    });
+
+    //update classes status
+    app.put("/classes/:classId/status", async (req, res) => {
+      const classId = req.params.classId;
+      const newStatus = req.body.status;
+
+      const updatedClass = await classesCollection.findOneAndUpdate(
+        { _id: new ObjectId(classId) },
+        { $set: { status: newStatus } },
+        { returnOriginal: false }
+      );
+
+      if (!updatedClass) {
+        return res.status(404).send({ error: "Class not found." });
+      }
+      res.send(updatedClass);
+    });
+
+    //get approved classes
+    app.get("/classes/approved", async (req, res) => {
+      const approvedClasses = await classesCollection
+        .find({ status: "approved" })
+        .toArray();
+      res.send(approvedClasses);
+    });
+
+    //handle student related API
+
+    //post a class to student collection
+    app.post("/students-classes", async (req, res) => {
+      const body = req.body;
+      const result = await studentsClassesCollection.insertOne(body);
+      res.send(result);
+    });
+
+    //get student classes by email
+    app.get("/student-classes/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { studentEmail: email, selected: true };
+      const result = await studentsClassesCollection.find(query).toArray();
+      res.send(result);
+    });
+
+    //get student class by id
+    app.get("/student-classes/id/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await studentsClassesCollection
+        .find({ _id: new ObjectId(id) })
+        .toArray();
+      res.send(result);
+    });
+
+    //post or update admin feedback
+    app.put("/classes/:classId/feedback", async (req, res) => {
+      const classId = req.params.classId;
+      const feedbackText = req.body.adminFeedback;
+
+      const updatedClass = await classesCollection.findOneAndUpdate(
+        { _id: new ObjectId(classId) },
+        { $set: { adminFeedback: feedbackText } },
+        { returnOriginal: false }
+      );
+      res.send(updatedClass.value);
+    });
+
+    //delete a class by student
+    app.delete("/student-classes/id/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await studentsClassesCollection.deleteOne(query);
       res.send(result);
     });
 

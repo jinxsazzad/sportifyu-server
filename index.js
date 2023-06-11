@@ -203,6 +203,12 @@ async function run() {
       res.send(result);
     });
 
+    app.get("/student-classes/id/:id", async (req, res) => {
+      const id = req.params.id;
+      const result = await studentsClassesCollection.find({_id: new ObjectId(id)}).toArray();
+      res.send(result);
+    });
+
     app.get("/popular-classes", async (req, res) => {
       const result = await classesCollection
         .find({ enrolledStudent: { $exists: true } })
@@ -213,22 +219,11 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/classes/id/:id", async (req, res) => {
-      try {
-        const classId = req.params.id;
-        const result = await classesCollection.findOne({
-          _id: new ObjectId(classId),
-        });
-
-        if (result) {
-          res.send(result);
-        } else {
-          res.status(404).send("Class not found");
-        }
-      } catch (error) {
-        console.error("Error fetching class:", error);
-        res.status(500).send("Internal server error");
-      }
+    app.delete("/student-classes/id/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+      const result = await studentsClassesCollection.deleteOne(query);
+      res.send(result);
     });
 
     //get class by email

@@ -106,7 +106,7 @@ async function run() {
     });
 
     //get all user
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyJWT, verifyAdmin, async (req, res) => {
       const allUsers = await usersCollection.find().toArray();
       res.send(allUsers);
     });
@@ -127,8 +127,7 @@ async function run() {
       res.send(allInstructors);
     });
 
-    //handle Classes related api
-
+    //handle Classes related API
     //post a class
     app.post("/classes", async (req, res) => {
       const body = req.body;
@@ -218,9 +217,8 @@ async function run() {
     });
 
     //handle student related API
-
     //post a class to student collection
-    app.post("/students-classes", async (req, res) => {
+    app.post("/students-classes", verifyJWT, async (req, res) => {
       const body = req.body;
       const result = await studentsClassesCollection.insertOne(body);
       res.send(result);

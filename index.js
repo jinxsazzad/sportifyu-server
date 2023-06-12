@@ -51,7 +51,7 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
-    //collections
+    //collections 
     const db = client.db("sportSpark");
     const usersCollection = db.collection("users");
     const classesCollection = db.collection("classes");
